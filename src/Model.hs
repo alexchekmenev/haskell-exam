@@ -5,9 +5,10 @@ import           Data.Time.Clock
 import           Data.Typeable
 
 data Message = Message {
-  sender :: String,
-  text   :: String,
-  time   :: UTCTime
+  sender    :: String,
+  recepient :: String,
+  text      :: String,
+  time      :: UTCTime
 } deriving (Show, Typeable)
 
 data MessagesDb = MessagesDb { allMessages :: IntMap.IntMap Message }

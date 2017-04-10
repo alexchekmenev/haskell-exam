@@ -28,7 +28,7 @@ printMessage m = putStrLn $ "["++ sender m ++ "]: " ++ text m
 client :: AcidState MessagesDb -> AcidState ChatContextDb -> IO ()
 client msgDb ctxDb = do
   ctx <- getContext ctxDb
-  print ctx
+  -- print ctx
   if login ctx == "" && activeChat ctx == "" then do
     putStrLn "Enter your login or `:q` to quit"
     ln <- getLine
@@ -46,9 +46,8 @@ client msgDb ctxDb = do
       when (rc /= ":q") (do
         putStrLn $ "Your chat with `" ++ rc ++ "` (`:q` to choose another chat)"
         putStrLn "..."
-        msgs <- lastKMessages msgDb (login ctx) rc 10
-        -- mapM_ printMessage msgs
-        print msgs
+        msgs <- lastKMessages msgDb rc 10
+        mapM_ printMessage msgs
         updateContext ctxDb $ ChatContext (login ctx) rc
         client msgDb ctxDb)
       when (rc == ":q") (do
@@ -56,10 +55,10 @@ client msgDb ctxDb = do
         updateContext ctxDb $ ChatContext "" ""
         client msgDb ctxDb)
     else do
-      msgs <- lastKMessages msgDb (login ctx) (activeChat ctx) 10
-      print msgs
       msg <- getLine
       when (msg /= ":q") (do
+        timestamp <- getCurrentTime
+        void $ saveMessage msgDb $ Message (login ctx) (activeChat ctx) msg timestamp
         putStrLn $ "["++ login ctx ++"]: " ++ msg
         client msgDb ctxDb)
       when (msg == ":q") (do
@@ -83,8 +82,8 @@ main = do
       msgFrom :: String <- W.param "from"
       msgText :: String <- W.param "text"
       timestamp <- lift getCurrentTime
-      liftIO $ saveMessage state $ Message msgFrom msgText timestamp
       c <- liftIO $ getContext chatContext
+      liftIO $ saveMessage state $ Message msgFrom (login c) msgText timestamp
       if msgFrom == activeChat c && msgFrom /= ""
         then do
           lift $ putStrLn $ "[" ++ msgFrom ++ "]: " ++ msgText
@@ -107,5 +106,5 @@ saveMessage state msg = update state $ AddMessage msg
 gallMessages :: AcidState MessagesDb -> IO [Message]
 gallMessages state = query state GetMessages
 
-lastKMessages :: AcidState MessagesDb -> String -> String -> Int -> IO [Message]
-lastKMessages state from to k = query state $ LastKChatMessages from to k
+lastKMessages :: AcidState MessagesDb -> String -> Int -> IO [Message]
+lastKMessages state to k = query state $ LastKChatMessages to k

@@ -20,12 +20,13 @@ deriveSafeCopy 0 'base ''MessagesDb
 getMessages :: Query MessagesDb [Message]
 getMessages = sortBy (comparing time) . IntMap.elems . allMessages <$> ask
 
-lastKChatMessages :: String -> String -> Int -> Query MessagesDb [Message]
-lastKChatMessages from to k =
+lastKChatMessages :: String -> Int -> Query MessagesDb [Message]
+lastKChatMessages to k =
+  reverse .
   take k .
   reverse .
   sortBy (comparing time) .
-  filter (\m -> sender m == from || sender m == to) .
+  filter (\m -> recepient m == to || sender m == to) .
   IntMap.elems . allMessages <$> ask
 
 addMessage :: Message -> Update MessagesDb ()
