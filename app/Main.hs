@@ -6,13 +6,15 @@ module Main where
 import           Control.Concurrent        (forkIO, threadDelay)
 import           Control.Monad.IO.Class    (liftIO)
 import           Control.Monad.Trans.Class (lift)
-import           Data.Acid                 (openLocalState, query, update)
+import           Data.Acid                 (closeAcidState, openLocalState,
+                                            query, update)
 import           Data.Acid.Abstract        (AcidState)
 import           Data.IntMap               (empty)
 import           Data.Text.Lazy            (Text, pack, unpack)
 import           Data.Time.Clock           (getCurrentTime)
 import           Model
 -- import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import           Control.Exception         (bracket)
 import qualified Web.Scotty                as W
 
 {-|
@@ -74,30 +76,36 @@ client msgDb ctxDb = do
   Main Scotty server function
 -}
 main :: IO ()
-main = do
-  state <- openLocalState (MessagesDb empty)
-  ctxDb <- openLocalState (ChatContextDb $ ChatContext "" "")
-  -- updateContext chatContext $ ChatContext "" ""
-  _ <- forkIO $ do
-    sleepMs 3
-    client state ctxDb
-  W.scotty 3000 $ do
-    -- middleware logStdoutDev
-    W.get "/" $ do
-      a <- liftIO $ getAllMessages state
-      W.text $ pack $ show a
-    W.get "/receive/:from/:text" $ do
-      msgFrom :: Text <- W.param "from"
-      msgText :: Text <- W.param "text"
-      timestamp <- lift getCurrentTime
-      c <- liftIO $ getContext ctxDb
-      liftIO $ saveMessage state $ Message msgFrom (login c) msgText timestamp
-      if msgFrom == activeChat c && msgFrom /= ""
-        then do
-          lift $ putStrLn $ "[" ++ unpack msgFrom ++ "]: " ++ unpack msgText
-          W.text "Ok"
-        else
-          W.text "Ok"
+main = bracket (do
+    msgDb <- openLocalState (MessagesDb empty)
+    ctxDb <- openLocalState (ChatContextDb $ ChatContext "" "")
+    -- updateContext chatContext $ ChatContext "" ""
+    return (msgDb, ctxDb))
+    (\(msgDb, ctxDb) -> do
+      putStrLn "Releasing..."
+      closeAcidState msgDb
+      closeAcidState ctxDb)
+    (\(state, ctxDb) -> do
+      _ <- forkIO $ do
+        sleepMs 3
+        client state ctxDb
+      W.scotty 3000 $ do
+        -- middleware logStdoutDev
+        W.get "/" $ do
+          a <- liftIO $ getAllMessages state
+          W.text $ pack $ show a
+        W.get "/receive/:from/:text" $ do
+          msgFrom :: Text <- W.param "from"
+          msgText :: Text <- W.param "text"
+          timestamp <- lift getCurrentTime
+          c <- liftIO $ getContext ctxDb
+          liftIO $ saveMessage state $ Message msgFrom (login c) msgText timestamp
+          if msgFrom == activeChat c && msgFrom /= ""
+            then do
+              lift $ putStrLn $ "[" ++ unpack msgFrom ++ "]: " ++ unpack msgText
+              W.text "Ok"
+            else
+              W.text "Ok")
 
 {-|
   Gets context from its acid-state
