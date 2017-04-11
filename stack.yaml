@@ -40,11 +40,13 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-  # - acid-state-0.14.2
-  # - time-1.6.0.1
-  # - containers-0.5.7.1
-#- transformers-base-0.4.4
-#- exceptions-0.8.3
+  - acid-state-0.14.2
+  - time-1.6.0.1
+  - containers-0.5.7.1
+  - transformers-base-0.4.4
+  - exceptions-0.8.3
+  - mtl-2.2.1
+  - safecopy-0.9.3.1
 
 
 # Override default flag values for local packages and extra-deps
